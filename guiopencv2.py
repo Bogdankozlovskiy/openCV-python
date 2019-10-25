@@ -13,10 +13,10 @@ label_in = Label(root, text='in: 0')
 label_out = Label(root, text='out: 0')
 frame_count = Label(root, text='frame: ')
 
-frame_count.grid(row=0, column=1)
-label_name_file.grid(row=0, column=2)
-label_in.grid(row=0, column=3)
-label_out.grid(row=0, column=4)
+frame_count.grid(row=0, column=2)
+label_name_file.grid(row=0, column=3)
+label_in.grid(row=0, column=4)
+label_out.grid(row=0, column=5)
 flag = True
 
 
@@ -160,12 +160,12 @@ def open_run_movie():
     label_name_file['text'] = f"file name: {open_file.split('/')[-1]}"
     if flag:
         lmain = Label(root)
-        lmain.grid(row=1, column=0, columnspan=5)
+        lmain.grid(row=1, column=0, columnspan=6)
         flag = False
     else:
         lmain.destroy()
         lmain = Label(root)
-        lmain.grid(row=1, column=0, columnspan=5)
+        lmain.grid(row=1, column=0, columnspan=6)
     
     cap = cv2.VideoCapture(open_file)
     args = get_param_for_start()
@@ -174,5 +174,26 @@ def open_run_movie():
     
 button = Button(root, text='open file', command=open_run_movie)
 button.grid(row=0, column=0)
+
+
+def open_run_cam():
+    global lmain, flag, label_name_file
+    label_name_file['text'] = "run on cam"
+    if flag:
+        lmain = Label(root)
+        lmain.grid(row=1, column=0, columnspan=6)
+        flag = False
+    else:
+        lmain.destroy()
+        lmain = Label(root)
+        lmain.grid(row=1, column=0, columnspan=6)
+        
+    cap = cv2.VideoCapture(0)
+    args = get_param_for_start()
+    video_stream(cap, lmain, *args)
+    
+    
+button_stream = Button(root, text='use cam', command=open_run_cam)
+button_stream.grid(row=0, column=1)
 
 root.mainloop()
