@@ -18,6 +18,7 @@ label_name_file.grid(row=0, column=3)
 label_in.grid(row=0, column=4)
 label_out.grid(row=0, column=5)
 flag = True
+cordinate_squade = [210, 310, 200, 300]
 
 
 def check(x):
@@ -29,15 +30,14 @@ def centropid(arr, default_centroid):
     arr = [i[-1] for i in d]
     first = [i[0] for i in arr]
     second = [i[1] for i in arr]
-    if first and second:
+    if len(first) > 5 and second:
         return int(sum(first) // len(first)), int(sum(second) // len(second))
     else:
         return default_centroid
     
 def get_param_for_start():
     #start work
-    xl, xr, yb, yh = 210, 310, 200, 300
-    default_centroid = (xl + xr) // 2, (yb + yh) // 2
+    xl, xr, yb, yh = cordinate_squade
     # Количество отслеживаемых кадров
     num_frames_to_track = 5
     # шаг пропуска
@@ -53,11 +53,13 @@ def get_param_for_start():
                            maxLevel = 2,
                            criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, .03))
     
-    return (frame_index_write, num_frames_jump, tracking_paths, xl, xr, yb, yh, default_centroid, 
+    return (frame_index_write, num_frames_jump, tracking_paths, 
             num_frames_to_track, frame_index, in_, out_, tracking_params)
 
-def video_stream(cap, lmain, frame_index_write, num_frames_jump, tracking_paths, xl, xr, yb, yh, 
-                 default_centroid, num_frames_to_track, frame_index, in_, out_, tracking_params, prev_gray=None):
+def video_stream(cap, lmain, frame_index_write, num_frames_jump, tracking_paths, 
+                num_frames_to_track, frame_index, in_, out_, tracking_params, prev_gray=None):
+    xl, xr, yb, yh = cordinate_squade 
+    default_centroid = (xl + xr) // 2, (yb + yh) // 2
     _, frame = cap.read()
     # Преобразование в градации серого
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -96,7 +98,7 @@ def video_stream(cap, lmain, frame_index_write, num_frames_jump, tracking_paths,
         # Обновление путей отслеживания
         tracking_paths = new_tracking_paths
         #фиксируем выход из облости############################################################################
-        if centropid(tracking_paths, default_centroid)[0] < xl - 50:
+        if centropid(tracking_paths, default_centroid)[0] < xl - 40:
             if frame_index - frame_index_write > 30:
                 out_ += 1
                 label_out['text'] = f'out: {out_}'
@@ -104,7 +106,7 @@ def video_stream(cap, lmain, frame_index_write, num_frames_jump, tracking_paths,
                 new_tracking_paths = []
                 frame_index_write = frame_index
                 imsave(str(frame_index) + '.jpg', output_img)
-        elif centropid(tracking_paths, default_centroid)[0] > xr + 65:
+        elif centropid(tracking_paths, default_centroid)[0] > xr + 40:
             if frame_index - frame_index_write > 40:
                 in_ += 1
                 label_in['text'] = f'in: {in_}'
@@ -117,7 +119,7 @@ def video_stream(cap, lmain, frame_index_write, num_frames_jump, tracking_paths,
     #Вход в блок 'if' после пропуска подходящего количества кадров
     if not frame_index % num_frames_jump:
         # Создание маски и вычерчивание окружностей
-        mask = np.zeros_like(frame_gray[xl:xr, yb:yh])
+        mask = np.zeros_like(frame_gray[yb:yh, xl:xr])##########
         mask[:] = 255
         for x, y in [np.int32(tp[-1]) for tp in tracking_paths]:
             cv2.circle(mask, (x, y), 6, 0, -1)
@@ -125,7 +127,7 @@ def video_stream(cap, lmain, frame_index_write, num_frames_jump, tracking_paths,
         # используя встроенную функцию с такими параметрами, как маска,
         # максимальное количество уrлов, уровень качества, минимальное расстояние
         # и размер блока.
-        feature_points = cv2.goodFeaturesToTrack(frame_gray[xl:xr, yb:yh], #сложные настройки
+        feature_points = cv2.goodFeaturesToTrack(frame_gray[yb:yh, xl:xr], #сложные настройки###################
                                                  mask = mask,
                                                  maxCorners = 500, 
                                                  qualityLevel = 0.1,
@@ -150,26 +152,41 @@ def video_stream(cap, lmain, frame_index_write, num_frames_jump, tracking_paths,
     imgtk = ImageTk.PhotoImage(image=img)
     lmain.imgtk = imgtk
     lmain.configure(image=imgtk)
-    lmain.after(1, video_stream, cap, lmain, frame_index_write, num_frames_jump, tracking_paths, xl, xr, yb, yh,
-                default_centroid, num_frames_to_track, frame_index, in_, out_, tracking_params, prev_gray) 
+    lmain.after(1, video_stream, cap, lmain, frame_index_write, num_frames_jump, tracking_paths,
+                num_frames_to_track, frame_index, in_, out_, tracking_params, prev_gray) 
 
+xx = []
+def test(event):
+	if event.state == 264:
+		xx.append((event.x, event.y))
+	elif xx:  #xl, xr, yb, yh
+		cordinate_squade.clear()
+		cordinate_squade.append(min((xx[0][0], xx[-1][0])))
+		cordinate_squade.append(max((xx[0][0], xx[-1][0])))
+		cordinate_squade.append(min((xx[0][1], xx[-1][1])))
+		cordinate_squade.append(max((xx[0][1], xx[-1][1])))
+		xx.clear()
 
 def open_run_movie():
     open_file = filedialog.askopenfilename()
-    global lmain, flag, label_name_file
-    label_name_file['text'] = f"file name: {open_file.split('/')[-1]}"
-    if flag:
-        lmain = Label(root)
-        lmain.grid(row=1, column=0, columnspan=6)
-        flag = False
-    else:
-        lmain.destroy()
-        lmain = Label(root)
-        lmain.grid(row=1, column=0, columnspan=6)
-    
-    cap = cv2.VideoCapture(open_file)
-    args = get_param_for_start()
-    video_stream(cap, lmain, *args)
+    if open_file:
+        global lmain, flag, label_name_file
+        label_name_file['text'] = f"file name: {open_file.split('/')[-1]}"
+        if flag:
+            lmain = Label(root)
+            lmain.grid(row=1, column=0, columnspan=6)
+            flag = False
+        else:
+            lmain.destroy()
+            lmain = Label(root)
+            lmain.grid(row=1, column=0, columnspan=6)
+
+        lmain.bind('<Motion>', test)
+        cap = cv2.VideoCapture(open_file)
+        args = get_param_for_start()
+        label_in['text'] = 'in: 0'
+        label_out['text'] = 'out: 0'
+        video_stream(cap, lmain, *args)
 
     
 button = Button(root, text='open file', command=open_run_movie)
@@ -187,9 +204,12 @@ def open_run_cam():
         lmain.destroy()
         lmain = Label(root)
         lmain.grid(row=1, column=0, columnspan=6)
-        
+
+    lmain.bind('<Motion>', test)
     cap = cv2.VideoCapture(0)
     args = get_param_for_start()
+    label_in['text'] = 'in: 0'
+    label_out['text'] = 'out: 0'
     video_stream(cap, lmain, *args)
     
     
