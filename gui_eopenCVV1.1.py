@@ -28,15 +28,12 @@ class LKTrack:
         self.frames.grid(row=0, column=3)
         self.in_p.grid(row=0, column=4)
             
-        self.track = []
-        self.current_frame = 0
-        self.people_in = 0
         self.build_online_rectangle = []
-        self.cordinate_squade = [100, 200, 200, 300]
+        self.cordinate_squade = self.load_squade()
     
     def get_lmain(self):
         self.lmain = Label(self.root)
-        self.lmain.bind('<Motion>', self.make_rectangle)
+        self.lmain.bind('<Motion>', self.make_squade)
         self.lmain.grid(row=1, column=0, columnspan=5)
         
     def open_run_muvie(self):
@@ -48,7 +45,7 @@ class LKTrack:
             self.get_lmain()
             self.cam = cv2.VideoCapture(open_file)
             self.file_name['text'] = 'file name: ' + open_file.split('/')[-1]
-            self.current_frame = 0
+            self.current_frame = self.people_in = 0
             self.track = []
             self.detect_points()
     
@@ -59,7 +56,9 @@ class LKTrack:
         self.get_lmain()
         self.cam = cv2.VideoCapture(0)
         self.file_name['text'] = 'run on cam'
-        self.current_frame = 0
+        self.current_frame = self.people_in = 0
+        self.track = []
+        self.detect_points()
         
     def detect_points(self):
         _, self.image =self.cam.read()
@@ -67,10 +66,12 @@ class LKTrack:
         features = cv2.goodFeaturesToTrack(
             self.gray[self.cordinate_squade[2]:self.cordinate_squade[3],
                       self.cordinate_squade[0]:self.cordinate_squade[1]], **self.feature_params)
-        if features.__class__.__name__ != 'NoneType':
+        try:
             features += np.array([[self.cordinate_squade[0], self.cordinate_squade[2]]], dtype=np.float32)  
             for x, y in features.reshape((-1, 2)):
                 self.track.append([(x, y)])
+        except:
+        	pass
         self.prev_gray = self.gray
         
     def track_points(self):
@@ -89,12 +90,12 @@ class LKTrack:
         self.track = [i[-100:] for i in self.track]
         self.prev_gray = self.gray
         
-    def point_is_move(self, point_track):#########################################??????????????????????
+    def point_is_move(self, point_track):
         if (abs(point_track[0][0] - point_track[-1][0]) > 30) and (point_track[-1][0] > self.cordinate_squade[1]):
             return True
         return False
     
-    def centroid(self):##############################################################
+    def centroid(self):
         points = [p for p in self.track if self.point_is_move(p)]
         if len(points) > 10:
             mean_x = int(sum([p[-1][0] for p in points]) // len(points))
@@ -130,8 +131,16 @@ class LKTrack:
     
     def save_img(self):
         imsave(str(self.current_frame) + '.jpg', self.image)
+
+    def save_squade(slef):
+    	with open('cordinate_squade.txt', 'w') as file:
+    		file.write(str(slef.cordinate_squade))
+
+    def load_squade(self):
+    	with open('cordinate_squade.txt') as file:
+    		return eval(file.read())
         
-    def make_rectangle(self, event):
+    def make_squade(self, event):
         if event.state == 264:
             self.build_online_rectangle.append((event.x, event.y))
         elif self.build_online_rectangle:
@@ -141,6 +150,7 @@ class LKTrack:
             self.cordinate_squade.append(min((self.build_online_rectangle[0][1], self.build_online_rectangle[-1][1])))
             self.cordinate_squade.append(max((self.build_online_rectangle[0][1], self.build_online_rectangle[-1][1])))
             self.build_online_rectangle.clear()
+            self.save_squade()
     
     def del_static_points(self):
         falg = True
@@ -164,4 +174,6 @@ class LKTrack:
         self.root.after(1, self.run) 
         return self.root
 
-LKTrack().run().mainloop()
+
+if __name__ == '__main__':
+    LKTrack().run().mainloop()
