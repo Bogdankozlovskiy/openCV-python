@@ -1,15 +1,14 @@
-import cv2
+from cv2 import TERM_CRITERIA_EPS, TERM_CRITERIA_COUNT, VideoCapture, COLOR_BGR2GRAY, cvtColor, calcOpticalFlowPyrLK, circle, rectangle, goodFeaturesToTrack
 import numpy as np
-from tkinter import *
+from tkinter import Tk, Label, Button, filedialog, PhotoImage
 from PIL import ImageTk, Image
-from tkinter import filedialog, PhotoImage
 from matplotlib.pyplot import imsave
 
 
 class LKTrack:
     _lk_params = dict(winSize=(11, 11),
                      maxLevel=2,
-                     criteria=(cv2.TERM_CRITERIA_EPS|cv2.TERM_CRITERIA_COUNT, 10, .003))
+                     criteria=(TERM_CRITERIA_EPS|TERM_CRITERIA_COUNT, 10, .003))
     
     _feature_params = dict(maxCorners=500, qualityLevel=.01, minDistance=10)
     
@@ -39,7 +38,7 @@ class LKTrack:
     def _open_run_muvie(self):
         open_file = filedialog.askopenfilename()
         if open_file:
-            self._cam = cv2.VideoCapture(open_file)
+            self._cam = VideoCapture(open_file)
             self._prepare_for_word()
             self._file_name['text'] = 'file name: ' + open_file.split('/')[-1]
     
@@ -53,14 +52,14 @@ class LKTrack:
     	self._detect_points()
 
     def _open_run_cum(self):
-        self._cam = cv2.VideoCapture(0)
+        self._cam = VideoCapture(0)
         self._prepare_for_word()
         self._file_name['text'] = 'run on cam'
      
     def _detect_points(self):
         _, self._image =self._cam.read()
-        self._gray = cv2.cvtColor(self._image, cv2.COLOR_BGR2GRAY)
-        features = cv2.goodFeaturesToTrack(
+        self._gray = cvtColor(self._image, COLOR_BGR2GRAY)
+        features = goodFeaturesToTrack(
             self._gray[self._cordinate_squade[2]:self._cordinate_squade[3],
                       self._cordinate_squade[0]:self._cordinate_squade[1]], **self._feature_params)
         try:
@@ -73,9 +72,9 @@ class LKTrack:
         
     def _track_points(self):
         _, self._image = self._cam.read()
-        self._gray = cv2.cvtColor(self._image, cv2.COLOR_BGR2GRAY)
+        self._gray = cvtColor(self._image, COLOR_BGR2GRAY)
         tmp = np.float32([tp[-1] for tp in self._track]).reshape(-1, 1, 2)
-        features, status, _ = cv2.calcOpticalFlowPyrLK(self._prev_gray, self._gray, tmp, None, **self._lk_params)
+        features, status, _ = calcOpticalFlowPyrLK(self._prev_gray, self._gray, tmp, None, **self._lk_params)
         features = [p for (st, p) in zip(status, features) if st]
         features = np.array(features).reshape((-1, 2))
         ndx = [i for (i, st) in enumerate(status) if not st]
@@ -97,7 +96,7 @@ class LKTrack:
         if len(points) > 10:
             mean_x = int(sum([p[-1][0] for p in points]) // len(points))
             mean_y = int(sum([p[-1][1] for p in points]) // len(points))
-            cv2.circle(self._image, (mean_x, mean_y), 10, (200, 0, 0), -1)
+            circle(self._image, (mean_x, mean_y), 10, (200, 0, 0), -1)
             if mean_x > self._cordinate_squade[1] + 90:
                 for i in points:
                     self._track.remove(i)
@@ -108,10 +107,10 @@ class LKTrack:
     def _draw_points(self):
         for index, (x, y) in enumerate((i[-1] for i in self._track)):
             color = (255, 0, 0) if self._point_is_move(self._track[index]) else (0, 255, 0)
-            cv2.circle(self._image, (int(x), int(y)), 3, color, -1)
+            circle(self._image, (int(x), int(y)), 3, color, -1)
                 
     def _draw_rectangle(self):
-        cv2.rectangle(self._image, 
+        rectangle(self._image, 
                       (self._cordinate_squade[0], self._cordinate_squade[-1]), 
                       (self._cordinate_squade[1], self._cordinate_squade[2]), 
                       (0, 0, 255))
